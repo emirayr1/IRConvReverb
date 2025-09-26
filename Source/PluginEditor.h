@@ -33,8 +33,12 @@ private:
     std::unique_ptr<juce::FileChooser> fileChooser;
 
     //Slider
-    juce::Slider mixSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttachment;
+    juce::Slider mixSlider, cutOffSlider, resonanceSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttachment, cutOffAttachment, resonanceAttachment;
+
+    //ChoiceBox
+    juce::ComboBox filterBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filterTypeAttachment;    
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (IRConvReverbAudioProcessorEditor)
 };

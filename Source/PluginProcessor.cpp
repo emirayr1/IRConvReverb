@@ -23,21 +23,40 @@ IRConvReverbAudioProcessor::IRConvReverbAudioProcessor()
 #endif
 {
     treeState.addParameterListener("mix", this);
+    treeState.addParameterListener("cutoff", this);
+    treeState.addParameterListener("resonance", this);
+    treeState.addParameterListener("filterType", this);
+
 }
 
 IRConvReverbAudioProcessor::~IRConvReverbAudioProcessor()
 {
     treeState.removeParameterListener("mix", this);
+    treeState.removeParameterListener("cutoff", this);
+    treeState.removeParameterListener("resonance", this);
+    treeState.removeParameterListener("filterType", this);
+
 }
 
 // PARAMETER LAYOUT
 juce::AudioProcessorValueTreeState::ParameterLayout IRConvReverbAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    juce::StringArray filterChoice{ "No Filter", "Low Pass", "Band Pass", "High Pass" };
+
+    juce::NormalisableRange<float> cutOffRange (20.0f, 20000.0f);
+    cutOffRange.setSkewForCentre(1000.0f);
 
     auto pMix = std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 0.5f);
+    auto pCutOff = std::make_unique <juce::AudioParameterFloat>("cutoff", "CutOff", cutOffRange, 1000.0f);
+    auto pResonance = std::make_unique <juce::AudioParameterFloat>("resonance", "Resonance", 1.0f, 5.0f, 1.0f);
+    auto pFilterMenu = std::make_unique<juce::AudioParameterChoice>("filterType", "Filter Type", filterChoice, 0);
 
     params.push_back(std::move(pMix));
+    params.push_back(std::move(pCutOff));
+    params.push_back(std::move(pResonance));
+    params.push_back(std::move(pFilterMenu));
+
 
     return { params.begin(), params.end() };
 }
@@ -47,6 +66,18 @@ void IRConvReverbAudioProcessor::parameterChanged(const juce::String& parameterI
     if (parameterID == "mix")
     {
         mix = newValue;
+    }
+    if (parameterID == "cutoff")
+    {
+        cutOffFrequency = newValue;
+    }
+    if (parameterID == "resonance")
+    {
+        resonanceValue = newValue;
+    }
+    if (parameterID == "filterType")
+    {
+        filterTypeValue = static_cast<int>(newValue);
     }
 }
 
@@ -115,12 +146,18 @@ void IRConvReverbAudioProcessor::changeProgramName (int index, const juce::Strin
 //==============================================================================
 void IRConvReverbAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    sampleRateCopy = sampleRate;
+
 	spec.maximumBlockSize = samplesPerBlock;
     spec.sampleRate = sampleRate;
 	spec.numChannels = getTotalNumOutputChannels();
 
     irLoader.reset(); // not sure why (it works)
     irLoader.prepare(spec);
+
+    stateVariableFilter.reset();
+    updateFilter();
+    stateVariableFilter.prepare(spec);
 }
 
 void IRConvReverbAudioProcessor::releaseResources()
@@ -165,13 +202,16 @@ void IRConvReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     juce::AudioBuffer<float> dryBuffer;
     dryBuffer.makeCopyOf(buffer);
 
-    DBG(mix);
+    //DBG(filterTypeValue);
 
     juce::dsp::AudioBlock<float> block{ buffer };
+    updateFilter();
 
-    if (irLoader.getCurrentIRSize() > 0) 
+
+    irLoader.process(juce::dsp::ProcessContextReplacing<float>(block)); // check what is processContextReplacing
+    if (irLoader.getCurrentIRSize() > 1 && filterTypeValue != 0) // use filter if ir is uploaded
     {
-        irLoader.process(juce::dsp::ProcessContextReplacing<float>(block)); // check what is processContextReplacing
+        stateVariableFilter.process(juce::dsp::ProcessContextReplacing<float>(block));
     }
 
     for (int ch = 0; ch < totalNumInputChannels; ++ch) 
@@ -185,6 +225,31 @@ void IRConvReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 }
+
+void IRConvReverbAudioProcessor::updateFilter()
+{
+    if (filterTypeValue == 1) // LOW PASS
+    {
+        stateVariableFilter.state->type = juce::dsp::StateVariableFilter::Parameters<float>::Type::lowPass;
+        stateVariableFilter.state->setCutOffFrequency(sampleRateCopy, cutOffFrequency, resonanceValue);
+
+    }
+
+    if (filterTypeValue == 2) // BAND PASS
+    {
+        stateVariableFilter.state->type = juce::dsp::StateVariableFilter::Parameters<float>::Type::bandPass;
+        stateVariableFilter.state->setCutOffFrequency(sampleRateCopy, cutOffFrequency, resonanceValue);
+
+    }
+
+    if (filterTypeValue == 3) // HIGH PASS
+    {
+        stateVariableFilter.state->type = juce::dsp::StateVariableFilter::Parameters<float>::Type::highPass;
+        stateVariableFilter.state->setCutOffFrequency(sampleRateCopy, cutOffFrequency, resonanceValue);
+
+    }
+}
+
 
 //==============================================================================
 bool IRConvReverbAudioProcessor::hasEditor() const

@@ -40,16 +40,53 @@ IRConvReverbAudioProcessorEditor::IRConvReverbAudioProcessorEditor (IRConvReverb
             });
     };
 
-    // Slider 
-    mixSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    mixSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
-    addAndMakeVisible(mixSlider);
-
+    // ATTACHMENTS
     mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.treeState, "mix", mixSlider
     );
 
+    cutOffAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.treeState, "cutoff", cutOffSlider
+    );
 
+    resonanceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.treeState, "resonance", resonanceSlider
+    );
+
+    
+
+    // Sliders
+    mixSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    cutOffSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    resonanceSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+
+    mixSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+    //mixSlider.setTextValueSuffix(" %");
+    mixSlider.textFromValueFunction = [](double value)
+        {
+            return juce::String(juce::roundToInt(value * 100.0)) + " %";
+        };
+
+    cutOffSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+    cutOffSlider.setNumDecimalPlacesToDisplay(0);
+    cutOffSlider.setRange(20.0, 20000.0);
+    cutOffSlider.setSkewFactorFromMidPoint(1000.0);
+    cutOffSlider.setTextValueSuffix(" Hz ");
+
+    resonanceSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+
+    addAndMakeVisible(mixSlider);
+    addAndMakeVisible(cutOffSlider);
+    addAndMakeVisible(resonanceSlider);
+
+    // ComboBox
+    filterBox.setJustificationType(juce::Justification::centred);
+    filterBox.addItemList(juce::StringArray{ "No Filter", "Low Pass", "Band Pass", "High Pass" }, 1);
+    addAndMakeVisible(filterBox);
+
+    filterTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.treeState, "filterType", filterBox
+    );
 
     setSize (400, 300);
 }
@@ -76,5 +113,9 @@ void IRConvReverbAudioProcessorEditor::resized()
     const auto btnHeight = btnWidth * 0.5;
 
     loadBtn.setBounds(btnX, btnY, btnWidth, btnHeight);
-    mixSlider.setBounds(getWidth() / 2 + 50, getHeight() / 2 - 50, 100, 100);
+    mixSlider.setBounds(getWidth() / 2 + 100, getHeight() / 2 - 50, 100, 100);
+    cutOffSlider.setBounds(getWidth() / 2 + 10, getHeight() / 2 - 80, 100, 100);
+    resonanceSlider.setBounds(getWidth() / 2 - 80, getHeight() / 2 - 110, 100, 100);
+    filterBox.setBounds(getWidth() / 2 - 150, getHeight() / 2 - 140, 100, 100);
+
 }

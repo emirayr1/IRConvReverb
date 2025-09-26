@@ -52,6 +52,8 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    
+    void updateFilter();
 
     juce::File root, savedFile;
     juce::dsp::Convolution irLoader;
@@ -61,7 +63,15 @@ public:
 private:
     //==============================================================================
     float mix = 0.5f;
+    float cutOffFrequency = 600.0f;
+    float resonanceValue = 1.0f;
+    int filterTypeValue = 0;
+
+    float sampleRateCopy;
+
     juce::dsp::ProcessSpec spec;
+    juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>,
+        juce::dsp::StateVariableFilter::Parameters<float>> stateVariableFilter;
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void parameterChanged(const juce::String& parameterID, float newValue);
